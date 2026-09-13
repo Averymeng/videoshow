@@ -248,32 +248,23 @@
       <a href="#assets">资产</a>
       <a href="#shots">分镜</a>
       <a href="#preview">合成</a>
-      <a href="#arch">架构</a>
     </nav>
   </div>
 </div>
 
 <header class="hero" id="top">
   <div class="wrap">
-    <span class="hero-eyebrow">作品集 · 独立项目 · 全栈</span>
+    <span class="hero-eyebrow">作品集 · 独立项目</span>
     <h1>从一句创意，<br>到一部<span class="accent">竖屏漫剧</span></h1>
     <p class="hero-deck">
       一个把灵感逐级落地的 AI 创作工作台：输入一句话创意，AI 生成剧本、解析出角色/场景/道具、
-      拆解成分镜脚本，最后用 FFmpeg 合成成片。这里展示它的每一步交互，和一个真实跑通的作品案例。
+      拆解成分镜脚本，最后自动合成成片。这里展示它的每一步交互，和一个真实跑通的作品案例。
     </p>
-    <div class="hero-tags">
-      <span class="tag">Next.js 16</span>
-      <span class="tag">React 19</span>
-      <span class="tag">SQLite</span>
-      <span class="tag">FFmpeg</span>
-      <span class="tag">多模型网关</span>
-      <span class="tag">DeepSeek</span>
-    </div>
     <div class="stats">
       <div class="stat"><b>5</b><span>步创作流水线</span></div>
       <div class="stat"><b>3</b><span>类资产 · 角色/场景/道具</span></div>
-      <div class="stat"><b>多供应商</b><span>故障转移 + 回落</span></div>
-      <div class="stat"><b>端到端</b><span>文本 → 图像 → 视频</span></div>
+      <div class="stat"><b>3</b><span>个剧本候选 · 一次生成</span></div>
+      <div class="stat"><b>9:16</b><span>竖屏成片</span></div>
     </div>
   </div>
 </header>
@@ -399,7 +390,7 @@
         <ul>
           <li><b>自动拆解</b>：通读剧本切分出分镜序列，含景别（全景 / 近景 / 特写）与镜头语言。</li>
           <li><b>首尾帧引导</b>：用首帧、尾帧两张图约束该镜头的运动起止。</li>
-          <li><b>批量生成</b>：支持批量生成首尾帧 / 批量生成视频，异步任务 + 轮询状态。</li>
+          <li><b>批量生成</b>：支持批量生成首尾帧 / 批量生成视频，一次点完自动跑。</li>
         </ul>
         <div class="outcome">
           <div class="lbl">真实产出 · 案例「秋天」共 7 个分镜</div>
@@ -445,9 +436,9 @@
     <div class="sec-head"><span class="sec-num">05</span><h2>分镜 → 成片</h2></div>
     <div class="step-grid">
       <div class="step-copy">
-        <p class="lead">所有分镜生成完毕后，一键 <b>合成最终视频</b>：用 FFmpeg 在本地把各分镜片段按顺序拼接，产出竖屏成片。</p>
+        <p class="lead">所有分镜生成完毕后，一键 <b>合成最终视频</b>：把各分镜片段按顺序自动拼接，产出竖屏成片。</p>
         <ul>
-          <li><b>本地 FFmpeg 合成</b>：不依赖第三方剪辑服务，任务队列 + 异步状态轮询。</li>
+          <li><b>自动拼接</b>：把所有分镜片段按顺序拼成一部完整成片，无需手动剪辑。</li>
           <li><b>分镜总览</b>：成片下方以网格展示每一格画面，方便逐段检查。</li>
           <li><b>下载素材</b>：合成后可下载成片与全部素材。</li>
         </ul>
@@ -479,32 +470,6 @@
   </div>
 </section>
 
-<!-- ================= 架构 ================= -->
-<section class="block" id="arch">
-  <div class="wrap">
-    <div class="sec-head"><span class="sec-num">UNDER THE HOOD</span><h2>技术架构</h2></div>
-    <p class="sec-sub">几个值得展开的设计选择。</p>
-    <div class="arch">
-      <div class="arch-item">
-        <h3><span class="chip">GATEWAY</span>多模型网关</h3>
-        <p>统一抽象 OpenAI / Gemini 等协议；显式模型 → 用户默认 → 内置默认三级解析，并支持按能力声明顺序 <b>故障转移</b>。每次调用都写入审计日志。</p>
-      </div>
-      <div class="arch-item">
-        <h3><span class="chip">ISOLATION</span>浏览器指纹隔离</h3>
-        <p>用「浏览器属性哈希 + 随机后缀」生成稳定身份，同一浏览器跨会话一致、不同浏览器天然隔离，无需账号体系即可多用户并行。</p>
-      </div>
-      <div class="arch-item">
-        <h3><span class="chip">BUILT-IN</span>内置 + 自配供应商回落</h3>
-        <p>平台内置一个 DeepSeek 文本供应商，开箱即用；用户也可在设置页添加自己的图像 / 视频供应商，回落链自动生效。</p>
-      </div>
-      <div class="arch-item">
-        <h3><span class="chip">QUEUE</span>SQLite 任务队列 + FFmpeg</h3>
-        <p>视频生成与合成走「提交 → 轮询」的异步任务，本地 FFmpeg 完成拼接，无需云端剪辑服务。</p>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- ================= 完整案例 ================= -->
 <section class="block" id="case">
   <div class="wrap">
@@ -526,6 +491,6 @@
 <footer class="footer">
   <div class="wrap inner">
     <span class="mark">AI 漫剧生成器</span>
-    <p>Next.js 16 · React 19 · SQLite · FFmpeg · 多模型网关 —— 一个把灵感一步步变成漫剧的全栈作品。</p>
+    <p>一个把灵感一步步变成漫剧的 AI 创作工作台。</p>
   </div>
 </footer>
