@@ -1,0 +1,531 @@
+<title>AI 漫剧生成器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* ---- tokens：浅色（漫画纸本） ---- */
+  :root{
+    --paper:#faf6ee; --ink:#211d18; --card:#fffdf5; --line:#e4dccb; --line-strong:#211d18;
+    --vermilion:#e14a33; --vermilion-ink:#fffdf5;
+    --indigo:#2e4a62; --indigo-ink:#f5f2e9;
+    --muted:#7d7464; --soft:#f0e8d8; --soft2:#f3ede1;
+    --serif:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+    --sans:"Noto Sans SC",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    --mono:"SFMono-Regular",ui-monospace,Menlo,Consolas,monospace;
+    --shadow:3px 3px 0 0 var(--ink);
+    --shadow-sm:2px 2px 0 0 var(--ink);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#161310; --ink:#f0eae0; --card:#201b17; --line:#3a3228; --line-strong:#f0eae0;
+      --vermilion:#f06a4e; --vermilion-ink:#1a140f;
+      --indigo:#5c88a8; --indigo-ink:#14100c;
+      --muted:#a79b89; --soft:#2a241d; --soft2:#241f1a;
+      --shadow:3px 3px 0 0 rgba(0,0,0,.55);
+      --shadow-sm:2px 2px 0 0 rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#161310; --ink:#f0eae0; --card:#201b17; --line:#3a3228; --line-strong:#f0eae0;
+    --vermilion:#f06a4e; --vermilion-ink:#1a140f;
+    --indigo:#5c88a8; --indigo-ink:#14100c;
+    --muted:#a79b89; --soft:#2a241d; --soft2:#241f1a;
+    --shadow:3px 3px 0 0 rgba(0,0,0,.55);
+    --shadow-sm:2px 2px 0 0 rgba(0,0,0,.55);
+  }
+
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--sans); font-size:16px; line-height:1.7;
+    background-image:radial-gradient(rgba(33,29,24,.045) 1px, transparent 1.4px);
+    background-size:7px 7px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 20px; }
+
+  /* ---- 顶部导航 ---- */
+  .topbar{
+    position:sticky; top:0; z-index:20; border-bottom:2px solid var(--ink);
+    background:color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter:blur(8px);
+  }
+  .topbar-in{ display:flex; align-items:center; justify-content:space-between; height:58px; }
+  .brand{ display:flex; align-items:center; gap:11px; text-decoration:none; color:var(--ink); }
+  .brand-mark{
+    width:30px; height:30px; display:grid; place-items:center; border-radius:6px;
+    background:var(--vermilion); color:var(--vermilion-ink);
+    font-family:var(--serif); font-weight:900; font-size:15px; box-shadow:var(--shadow-sm);
+  }
+  .brand-name{ font-family:var(--serif); font-weight:700; letter-spacing:.02em; }
+  .topbar-links{ display:flex; gap:6px; }
+  .topbar-links a{
+    color:var(--muted); text-decoration:none; font-size:13px; font-weight:500;
+    padding:6px 11px; border-radius:7px; transition:.15s;
+  }
+  .topbar-links a:hover{ color:var(--ink); background:var(--soft); }
+
+  /* ---- hero ---- */
+  .hero{ padding:72px 0 52px; }
+  .hero-eyebrow{
+    display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:700;
+    letter-spacing:.12em; color:var(--indigo);
+  }
+  .hero-eyebrow::before{ content:""; width:22px; height:2px; background:var(--vermilion); }
+  .hero h1{
+    font-family:var(--serif); font-weight:900; font-size:clamp(42px,7vw,72px);
+    line-height:1.08; margin:18px 0 0; letter-spacing:.01em; text-wrap:balance;
+  }
+  .hero .accent{ color:var(--vermilion); }
+  .hero-deck{
+    max-width:640px; margin:20px 0 0; font-size:17px; color:var(--muted); text-wrap:balance;
+  }
+  .hero-tags{ display:flex; flex-wrap:wrap; gap:8px; margin:26px 0 0; }
+  .tag{
+    font-family:var(--mono); font-size:12px; padding:5px 11px; border:1.5px solid var(--line-strong);
+    border-radius:999px; background:var(--card); font-weight:500;
+  }
+
+  /* ---- 数字条 ---- */
+  .stats{
+    margin:34px 0 0; display:grid; grid-template-columns:repeat(4,1fr);
+    border:2px solid var(--ink); border-radius:12px; overflow:hidden; background:var(--card);
+    box-shadow:var(--shadow);
+  }
+  .stat{ padding:18px 16px; border-left:2px solid var(--ink); }
+  .stat:first-child{ border-left:none; }
+  .stat b{ display:block; font-family:var(--serif); font-size:26px; font-weight:900; line-height:1.1; }
+  .stat span{ font-size:12.5px; color:var(--muted); }
+
+  /* ---- 章节 ---- */
+  section.block{ padding:56px 0; }
+  .block + .block{ border-top:2px dashed var(--line); }
+  .sec-head{ display:flex; align-items:baseline; gap:14px; margin-bottom:26px; }
+  .sec-num{
+    font-family:var(--mono); font-size:13px; font-weight:700; color:var(--vermilion);
+    letter-spacing:.08em; flex-shrink:0;
+  }
+  .sec-head h2{
+    font-family:var(--serif); font-weight:900; font-size:clamp(24px,3.4vw,34px);
+    margin:0; letter-spacing:.01em;
+  }
+  .sec-sub{ color:var(--muted); font-size:15px; margin:-14px 0 26px; max-width:600px; }
+
+  /* ---- 流程主线 ---- */
+  .flow{ display:grid; grid-template-columns:repeat(5,1fr); gap:0; border:2px solid var(--ink); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); }
+  .flow-step{ padding:20px 14px; background:var(--card); border-left:2px solid var(--ink); position:relative; }
+  .flow-step:first-child{ border-left:none; }
+  .flow-step .k{ font-family:var(--mono); font-size:12px; color:var(--vermilion); font-weight:700; }
+  .flow-step .t{ font-family:var(--serif); font-weight:700; font-size:16px; margin-top:6px; }
+  .flow-step .d{ font-size:12.5px; color:var(--muted); margin-top:5px; line-height:1.55; }
+
+  /* ---- 步骤：说明 + 界面 mockup ---- */
+  .step-grid{ display:grid; grid-template-columns:1fr 1.15fr; gap:34px; align-items:start; }
+  .step-copy .lead{ font-size:16.5px; margin:0 0 16px; }
+  .step-copy ul{ margin:0; padding:0; list-style:none; }
+  .step-copy li{ position:relative; padding-left:22px; margin:10px 0; font-size:14.5px; color:var(--muted); }
+  .step-copy li::before{ content:"›"; position:absolute; left:2px; top:-1px; color:var(--vermilion); font-weight:700; font-size:16px; }
+  .step-copy li b{ color:var(--ink); font-weight:600; }
+  .outcome{
+    margin-top:20px; border:2px solid var(--ink); border-radius:10px; background:var(--card);
+    box-shadow:var(--shadow-sm); padding:14px 16px;
+  }
+  .outcome .lbl{ font-family:var(--mono); font-size:11px; letter-spacing:.1em; color:var(--indigo); font-weight:700; }
+  .outcome .val{ margin-top:6px; font-size:14px; line-height:1.65; }
+
+  /* ---- 界面 mockup 框架 ---- */
+  .frame{
+    border:2px solid var(--ink); border-radius:12px; background:var(--card);
+    box-shadow:var(--shadow); overflow:hidden;
+  }
+  .frame-bar{
+    display:flex; align-items:center; gap:8px; padding:10px 14px;
+    border-bottom:2px solid var(--ink); background:var(--soft2);
+  }
+  .dots{ display:flex; gap:5px; }
+  .dots i{ width:10px; height:10px; border-radius:50%; border:1.5px solid var(--ink); }
+  .dots i:nth-child(1){ background:var(--vermilion); }
+  .dots i:nth-child(2){ background:#d9a441; }
+  .dots i:nth-child(3){ background:#7a8450; }
+  .frame-title{ font-family:var(--mono); font-size:12px; color:var(--muted); margin-left:4px; }
+  .frame-body{ padding:18px; }
+
+  /* mockup 内部 UI */
+  .mock-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .mock-tab{
+    font-size:12px; font-weight:600; padding:4px 11px; border-radius:8px; border:2px solid transparent;
+    color:var(--muted);
+  }
+  .mock-tab.on{ background:var(--vermilion); color:var(--vermilion-ink); border-color:var(--ink); box-shadow:2px 2px 0 0 var(--ink); }
+  .mock-btn{
+    display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600;
+    padding:7px 13px; border-radius:8px; background:var(--vermilion); color:var(--vermilion-ink);
+    border:2px solid var(--ink); box-shadow:var(--shadow-sm); cursor:default;
+  }
+  .mock-btn.ghost{ background:var(--card); color:var(--ink); }
+  .mock-btn.indigo{ background:var(--indigo); color:var(--indigo-ink); }
+  .mock-pill{
+    display:inline-block; font-size:12px; padding:3px 12px; border-radius:999px; border:1.5px solid var(--line-strong);
+    color:var(--muted); background:var(--card);
+  }
+  .mock-pill.on{ background:var(--vermilion); color:var(--vermilion-ink); border-color:var(--ink); }
+  .mock-input{
+    border:2px solid var(--line-strong); border-radius:8px; background:var(--paper);
+    padding:9px 12px; font-size:12.5px; color:var(--muted); font-family:var(--sans);
+  }
+  .mock-card{ border:2px solid var(--ink); border-radius:10px; background:var(--card); padding:13px; }
+  .mock-card h5{ margin:0 0 4px; font-family:var(--serif); font-size:14px; font-weight:700; }
+  .mock-card p{ margin:0; font-size:12px; color:var(--muted); line-height:1.6; }
+  .mock-grid{ display:grid; gap:12px; }
+  .cols-3{ grid-template-columns:repeat(3,1fr); }
+  .cols-2{ grid-template-columns:repeat(2,1fr); }
+  .thumb{
+    aspect-ratio:1/1; border:1.5px solid var(--line); border-radius:8px;
+    display:grid; place-items:center; text-align:center;
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--indigo) 16%, transparent), transparent 60%),
+      var(--soft);
+    color:var(--muted); font-size:11px; padding:6px;
+  }
+  .thumb.v{ aspect-ratio:16/9; }
+  .badge{
+    display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:5px;
+    border:1.5px solid var(--ink); background:var(--soft);
+  }
+  .badge.hot{ background:var(--vermilion); color:var(--vermilion-ink); }
+  .mono{ font-family:var(--mono); }
+  .tagline{ font-style:italic; color:var(--muted); }
+
+  /* ---- 架构亮点 ---- */
+  .arch{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  .arch-item{ border:2px solid var(--ink); border-radius:12px; background:var(--card); padding:20px; box-shadow:var(--shadow-sm); }
+  .arch-item h3{ margin:0 0 8px; font-family:var(--serif); font-size:17px; font-weight:700; display:flex; align-items:center; gap:9px; }
+  .arch-item .chip{ font-family:var(--mono); font-size:10px; font-weight:700; padding:2px 7px; border-radius:5px; background:var(--indigo); color:var(--indigo-ink); letter-spacing:.04em; }
+  .arch-item p{ margin:0; font-size:14px; color:var(--muted); line-height:1.7; }
+
+  /* ---- 案例故事板 ---- */
+  .board{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .shot{ border:2px solid var(--ink); border-radius:10px; background:var(--card); box-shadow:var(--shadow-sm); overflow:hidden; }
+  .shot .num{ font-family:var(--mono); font-size:11px; font-weight:700; color:var(--vermilion); padding:8px 10px 0; }
+  .shot .frame-holder{ margin:8px 10px; aspect-ratio:9/16; border:1.5px solid var(--line); border-radius:7px; background:linear-gradient(160deg,color-mix(in srgb,var(--indigo) 18%,transparent),transparent 62%),var(--soft); position:relative; overflow:hidden; }
+  .shot .frame-holder::after{ content:attr(data-cam); position:absolute; left:7px; top:7px; font-family:var(--mono); font-size:9px; color:var(--muted); background:color-mix(in srgb,var(--card) 80%,transparent); padding:1px 6px; border-radius:4px; }
+  .shot .desc{ padding:0 10px 10px; font-size:11.5px; color:var(--muted); line-height:1.6; }
+
+  .footer{ padding:52px 0 72px; border-top:2px solid var(--ink); }
+  .footer .inner{ display:flex; justify-content:space-between; align-items:center; gap:18px; flex-wrap:wrap; }
+  .footer p{ margin:0; font-size:13px; color:var(--muted); }
+  .footer .mark{ font-family:var(--serif); font-weight:900; font-size:18px; }
+
+  /* ---- 响应式 ---- */
+  @media (max-width:820px){
+    .step-grid{ grid-template-columns:1fr; gap:22px; }
+    .stats{ grid-template-columns:repeat(2,1fr); }
+    .stat:nth-child(3){ border-left:none; border-top:2px solid var(--ink); }
+    .stat:nth-child(4){ border-top:2px solid var(--ink); }
+    .flow{ grid-template-columns:1fr; }
+    .flow-step{ border-left:none; border-top:2px solid var(--ink); }
+    .flow-step:first-child{ border-top:none; }
+    .arch{ grid-template-columns:1fr; }
+    .board{ grid-template-columns:repeat(2,1fr); }
+  }
+  @media (max-width:520px){
+    .cols-3{ grid-template-columns:1fr; }
+    .cols-2{ grid-template-columns:1fr; }
+    .board{ grid-template-columns:1fr 1fr; }
+    .topbar-links{ display:none; }
+  }
+</style>
+
+<div class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="#top">
+      <span class="brand-mark">漫</span>
+      <span class="brand-name">AI 漫剧生成器</span>
+    </a>
+    <nav class="topbar-links">
+      <a href="#flow">流程</a>
+      <a href="#script">剧本</a>
+      <a href="#assets">资产</a>
+      <a href="#shots">分镜</a>
+      <a href="#preview">合成</a>
+      <a href="#arch">架构</a>
+    </nav>
+  </div>
+</div>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <span class="hero-eyebrow">作品集 · 独立项目 · 全栈</span>
+    <h1>从一句创意，<br>到一部<span class="accent">竖屏漫剧</span></h1>
+    <p class="hero-deck">
+      一个把灵感逐级落地的 AI 创作工作台：输入一句话创意，AI 生成剧本、解析出角色/场景/道具、
+      拆解成分镜脚本，最后用 FFmpeg 合成成片。这里展示它的每一步交互，和一个真实跑通的作品案例。
+    </p>
+    <div class="hero-tags">
+      <span class="tag">Next.js 16</span>
+      <span class="tag">React 19</span>
+      <span class="tag">SQLite</span>
+      <span class="tag">FFmpeg</span>
+      <span class="tag">多模型网关</span>
+      <span class="tag">DeepSeek</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>5</b><span>步创作流水线</span></div>
+      <div class="stat"><b>3</b><span>类资产 · 角色/场景/道具</span></div>
+      <div class="stat"><b>多供应商</b><span>故障转移 + 回落</span></div>
+      <div class="stat"><b>端到端</b><span>文本 → 图像 → 视频</span></div>
+    </div>
+  </div>
+</header>
+
+<section class="block" id="flow">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">FLOW</span><h2>创作流水线</h2></div>
+    <p class="sec-sub">五个环节层层递进，每一步的产出都成为下一步的输入。</p>
+    <div class="flow">
+      <div class="flow-step"><div class="k">01</div><div class="t">创意</div><div class="d">一句话故事 + 题材 / 情感 / 主角</div></div>
+      <div class="flow-step"><div class="k">02</div><div class="t">剧本</div><div class="d">生成 3 个候选方案，选定一个</div></div>
+      <div class="flow-step"><div class="k">03</div><div class="t">资产</div><div class="d">解析角色 / 场景 / 道具，逐个出图</div></div>
+      <div class="flow-step"><div class="k">04</div><div class="t">分镜</div><div class="d">拆成分镜脚本，生成首尾帧与视频</div></div>
+      <div class="flow-step"><div class="k">05</div><div class="t">合成</div><div class="d">FFmpeg 拼接所有分镜成最终成片</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 剧本 ================= -->
+<section class="block" id="script">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01 / 02</span><h2>创意 → 剧本</h2></div>
+    <div class="step-grid">
+      <div class="step-copy">
+        <p class="lead">输入一句创意，选定题材、情感与主角，AI 一次性给出 <b>3 个风格走向不同的剧本候选</b>，你从中挑一个保存。</p>
+        <ul>
+          <li><b>3 候选对比</b>：核心设定、情绪走向或反转点各有差异，卡片式并排选择。</li>
+          <li><b>标准剧本格式</b>：SCENE 序号、场景标题、舞台指示、角色对话，体量控制在 1–3 分钟、8 个场景内。</li>
+          <li><b>可编辑可重来</b>：选定后标题 / 梗概 / 正文都能改，也能一键重新创作。</li>
+        </ul>
+        <div class="outcome">
+          <div class="lbl">真实产出 · 案例《北京秋天请回答》</div>
+          <div class="val"><em class="tagline">「恐高男友带她爬上景山，在故宫最高的秋色里掏出银杏叶包住的戒指——她才发现他一直在偷偷准备求婚。」</em><br>
+          <span class="mono">SCENE 1 · 外景 北京南站 白天</span> —— 秋日阳光洒在出站口，林夏拖着行李箱兴奋跑出，陈屿举着手机跟在后面。</div>
+        </div>
+      </div>
+
+      <div class="frame">
+        <div class="frame-bar"><div class="dots"><i></i><i></i><i></i></div><span class="frame-title">project / 秋天 / script</span></div>
+        <div class="frame-body">
+          <div class="mock-tabs">
+            <span class="mock-tab on">01 剧本</span><span class="mock-tab">02 资产</span><span class="mock-tab">03 分镜</span><span class="mock-tab">04 预览</span>
+          </div>
+          <div class="mock-input" style="margin-bottom:10px">在这里输入你的故事或剧本创意……</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">题材类型</div>
+          <div class="mock-grid cols-3" style="gap:7px;margin-bottom:12px">
+            <span class="mock-pill on">爱情</span><span class="mock-pill">悬疑</span><span class="mock-pill">搞笑</span>
+            <span class="mock-pill">热血</span><span class="mock-pill">科幻</span><span class="mock-pill">古风</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">情感基调</div>
+          <div class="mock-grid cols-3" style="gap:7px;margin-bottom:12px">
+            <span class="mock-pill">浪漫</span><span class="mock-pill on">治愈</span><span class="mock-pill">燃向</span>
+            <span class="mock-pill">虐心</span><span class="mock-pill">轻松</span><span class="mock-pill">紧张</span>
+          </div>
+          <div style="margin-bottom:12px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">主角设定</div>
+            <div class="mock-input">一对情侣</div>
+          </div>
+          <span class="mock-btn">生成剧本方案</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 资产 ================= -->
+<section class="block" id="assets">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><h2>剧本 → 资产库</h2></div>
+    <div class="step-grid">
+      <div class="step-copy">
+        <p class="lead">从剧本里解析出三类资产——<b>角色、场景、道具</b>，每一项都有独立的文字设定，并支持单独生成立绘。</p>
+        <ul>
+          <li><b>三类资产统一管理</b>：角色（character）、场景（location）、道具（prop），按类型筛选。</li>
+          <li><b>一键解析</b>：AI 通读剧本，自动抽取所有出场元素与描述。</li>
+          <li><b>逐个出图</b>：每项资产单独生成图像，用于后续分镜的一致性参考。</li>
+        </ul>
+        <div class="outcome">
+          <div class="lbl">真实产出 · 案例「秋天」的资产库</div>
+          <div class="val"><b>角色 2</b> · 林夏、陈屿　<b>场景 4</b> · 北京南站、南锣鼓巷、故宫角楼、景山万春亭　<b>道具 4</b> · 行李箱、手机、糖葫芦、银杏叶戒指</div>
+        </div>
+      </div>
+
+      <div class="frame">
+        <div class="frame-bar"><div class="dots"><i></i><i></i><i></i></div><span class="frame-title">project / 秋天 / assets</span></div>
+        <div class="frame-body">
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">
+            <span class="mock-btn">解析资产</span><span class="mock-btn ghost">添加资产</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+            <span class="mock-pill on">全部</span><span class="mock-pill">人物</span><span class="mock-pill">场景</span><span class="mock-pill">道具</span>
+          </div>
+          <div class="mock-grid cols-3">
+            <div class="mock-card">
+              <h5>林夏</h5><span class="badge hot">角色</span>
+              <p style="margin-top:5px">26 岁女性，栗棕色中长卷发，米色风衣、白色毛衣。</p>
+              <div class="thumb" style="margin-top:8px">角色立绘</div>
+            </div>
+            <div class="mock-card">
+              <h5>景山万春亭</h5><span class="badge">场景</span>
+              <p style="margin-top:5px">景山制高点，俯瞰故宫全景，黄昏光线明亮高远。</p>
+              <div class="thumb" style="margin-top:8px">场景图</div>
+            </div>
+            <div class="mock-card">
+              <h5>银杏叶戒指</h5><span class="badge">道具</span>
+              <p style="margin-top:5px">金黄银杏叶包裹一枚精致戒指，用于求婚定情。</p>
+              <div class="thumb" style="margin-top:8px">道具图</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 分镜 ================= -->
+<section class="block" id="shots">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><h2>资产 → 分镜</h2></div>
+    <div class="step-grid">
+      <div class="step-copy">
+        <p class="lead">AI 把剧本拆成一个个分镜脚本，每格包含 <b>景别、画面描述</b>，再生成 <b>首帧 / 尾帧</b> 图，最后合成该格的视频。</p>
+        <ul>
+          <li><b>自动拆解</b>：通读剧本切分出分镜序列，含景别（全景 / 近景 / 特写）与镜头语言。</li>
+          <li><b>首尾帧引导</b>：用首帧、尾帧两张图约束该镜头的运动起止。</li>
+          <li><b>批量生成</b>：支持批量生成首尾帧 / 批量生成视频，异步任务 + 轮询状态。</li>
+        </ul>
+        <div class="outcome">
+          <div class="lbl">真实产出 · 案例「秋天」共 7 个分镜</div>
+          <div class="val"><span class="mono">01</span> 全景 · 北京南站出站口，林夏拖行李箱兴奋跑出　<span class="mono">06</span> 近景 · 陈屿单膝跪地，手托银杏叶包住的戒指　<span class="mono">07</span> 全景 · 万春亭上陈屿将林夏抱入怀中，游客鼓掌</div>
+        </div>
+      </div>
+
+      <div class="frame">
+        <div class="frame-bar"><div class="dots"><i></i><i></i><i></i></div><span class="frame-title">project / 秋天 / shots</span></div>
+        <div class="frame-body">
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
+            <span class="mock-btn">分镜拆解</span><span class="mock-btn ghost">批量生成首尾帧</span><span class="mock-btn ghost">批量生成视频</span>
+          </div>
+          <div class="mock-grid cols-2">
+            <div class="mock-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span class="mono" style="font-size:12px;font-weight:700">分镜 1</span><span class="badge">待处理</span>
+              </div>
+              <p>全景，北京南站出站口，林夏拖行李箱兴奋跑出，陈屿举手机跟在后面。</p>
+              <div class="mock-grid cols-2" style="margin-top:8px">
+                <div class="thumb v">首帧</div><div class="thumb v">尾帧</div>
+              </div>
+            </div>
+            <div class="mock-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span class="mono" style="font-size:12px;font-weight:700">分镜 6</span><span class="badge hot">待处理</span>
+              </div>
+              <p>近景，万春亭前，陈屿单膝跪地，手托银杏叶包着的戒指。</p>
+              <div class="mock-grid cols-2" style="margin-top:8px">
+                <div class="thumb v">首帧</div><div class="thumb v">尾帧</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 预览 / 合成 ================= -->
+<section class="block" id="preview">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">05</span><h2>分镜 → 成片</h2></div>
+    <div class="step-grid">
+      <div class="step-copy">
+        <p class="lead">所有分镜生成完毕后，一键 <b>合成最终视频</b>：用 FFmpeg 在本地把各分镜片段按顺序拼接，产出竖屏成片。</p>
+        <ul>
+          <li><b>本地 FFmpeg 合成</b>：不依赖第三方剪辑服务，任务队列 + 异步状态轮询。</li>
+          <li><b>分镜总览</b>：成片下方以网格展示每一格画面，方便逐段检查。</li>
+          <li><b>下载素材</b>：合成后可下载成片与全部素材。</li>
+        </ul>
+        <div class="outcome">
+          <div class="lbl">产出形态</div>
+          <div class="val">竖屏 9:16 成片（mp4）· 分镜片段 · 首尾帧图 · 资产立绘</div>
+        </div>
+      </div>
+
+      <div class="frame">
+        <div class="frame-bar"><div class="dots"><i></i><i></i><i></i></div><span class="frame-title">project / 秋天 / preview</span></div>
+        <div class="frame-body">
+          <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+            <span class="mock-btn">合成最终视频</span><span class="mono" style="font-size:12px;color:var(--muted)">0/7</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+            <div class="thumb v" style="aspect-ratio:9/16">01</div>
+            <div class="thumb v" style="aspect-ratio:9/16">02</div>
+            <div class="thumb v" style="aspect-ratio:9/16">03</div>
+            <div class="thumb v" style="aspect-ratio:9/16">04</div>
+            <div class="thumb v" style="aspect-ratio:9/16">05</div>
+            <div class="thumb v" style="aspect-ratio:9/16">06</div>
+            <div class="thumb v" style="aspect-ratio:9/16">07</div>
+            <div class="thumb v" style="aspect-ratio:9/16">+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 架构 ================= -->
+<section class="block" id="arch">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">UNDER THE HOOD</span><h2>技术架构</h2></div>
+    <p class="sec-sub">几个值得展开的设计选择。</p>
+    <div class="arch">
+      <div class="arch-item">
+        <h3><span class="chip">GATEWAY</span>多模型网关</h3>
+        <p>统一抽象 OpenAI / Gemini 等协议；显式模型 → 用户默认 → 内置默认三级解析，并支持按能力声明顺序 <b>故障转移</b>。每次调用都写入审计日志。</p>
+      </div>
+      <div class="arch-item">
+        <h3><span class="chip">ISOLATION</span>浏览器指纹隔离</h3>
+        <p>用「浏览器属性哈希 + 随机后缀」生成稳定身份，同一浏览器跨会话一致、不同浏览器天然隔离，无需账号体系即可多用户并行。</p>
+      </div>
+      <div class="arch-item">
+        <h3><span class="chip">BUILT-IN</span>内置 + 自配供应商回落</h3>
+        <p>平台内置一个 DeepSeek 文本供应商，开箱即用；用户也可在设置页添加自己的图像 / 视频供应商，回落链自动生效。</p>
+      </div>
+      <div class="arch-item">
+        <h3><span class="chip">QUEUE</span>SQLite 任务队列 + FFmpeg</h3>
+        <p>视频生成与合成走「提交 → 轮询」的异步任务，本地 FFmpeg 完成拼接，无需云端剪辑服务。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 完整案例 ================= -->
+<section class="block" id="case">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">SHOWCASE</span><h2>一个完整案例</h2></div>
+    <p class="sec-sub">《北京秋天请回答》—— 从一句「秋天的北京，恐高的男友要带她爬景山」开始，AI 生成的全部分镜脚本。</p>
+    <div class="board">
+      <div class="shot"><div class="num">SHOT 01</div><div class="frame-holder" data-cam="全景"></div><div class="desc">北京南站出站口，秋日阳光洒落，林夏拖行李箱兴奋跑出，陈屿举手机跟在后面。</div></div>
+      <div class="shot"><div class="num">SHOT 02</div><div class="frame-holder" data-cam="近景"></div><div class="desc">林夏凑近陈屿手机查看照片，皱眉嘟囔，陈屿微笑注视她，背景是出站口。</div></div>
+      <div class="shot"><div class="num">SHOT 03</div><div class="frame-holder" data-cam="中近景"></div><div class="desc">南锣鼓巷胡同，林夏举糖葫芦要喂陈屿，陈屿偏头躲开，神情无奈。</div></div>
+      <div class="shot"><div class="num">SHOT 04</div><div class="frame-holder" data-cam="中景"></div><div class="desc">故宫角楼旁，夕阳染红护城河，陈屿低头看手机，林夏侧身偷瞄，神情疑惑。</div></div>
+      <div class="shot"><div class="num">SHOT 05</div><div class="frame-holder" data-cam="全景"></div><div class="desc">景山台阶上，陈屿拉着林夏的手向上爬，林夏微微喘气，陈屿回望，神情紧张。</div></div>
+      <div class="shot"><div class="num">SHOT 06</div><div class="frame-holder" data-cam="近景"></div><div class="desc">万春亭前，陈屿单膝跪地，手托银杏叶包着的戒指，林夏捂嘴惊讶。</div></div>
+      <div class="shot"><div class="num">SHOT 07</div><div class="frame-holder" data-cam="全景"></div><div class="desc">万春亭上，陈屿起身将林夏抱入怀中，周围游客微笑鼓掌，背景是故宫全景。</div></div>
+      <div class="shot"><div class="num">FIN</div><div class="frame-holder" data-cam="片尾"></div><div class="desc">七个分镜合成 9:16 竖屏成片——一个完整的求婚故事。</div></div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap inner">
+    <span class="mark">AI 漫剧生成器</span>
+    <p>Next.js 16 · React 19 · SQLite · FFmpeg · 多模型网关 —— 一个把灵感一步步变成漫剧的全栈作品。</p>
+  </div>
+</footer>
